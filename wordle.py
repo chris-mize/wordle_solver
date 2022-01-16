@@ -177,4 +177,4 @@ def play_externally():
 
 if __name__ == "__main__":
     # play_externally()
-    autoplay("tests")
+    autoplay("light")
