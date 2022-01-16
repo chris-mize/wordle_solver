@@ -1,23 +1,16 @@
-from nltk.corpus import brown
 from typing import Set, List, Tuple
 import random
 
 
-def load_five_char_eng_words(char_set: str) -> Set[str]:
+def import_words(filename: str) -> Set[str]:
     word_list = []
-    for word in brown.words():
-        if len(word) == 5:
-            add = True
-            for letter in word:
-                if letter not in char_set:
-                    add = False
-            
-            if add:
-                word_list.append(word.lower())
+    with open(filename, 'r', newline='') as file:
+        for line in file:
+            word_list.append(line.strip())
     return set(word_list)
 
 
-def check_valid(guess: str, wordset: Set[str], charset: str) -> bool:
+def check_valid(guess: str, wordset: Set[str], charset: str) -> None:
     if len(guess) != 5:
         raise ValueError("Word length must be 5.")
     if bool([True for char in guess if char not in charset]):
@@ -25,7 +18,7 @@ def check_valid(guess: str, wordset: Set[str], charset: str) -> bool:
     if guess not in wordset:
         raise ValueError("Word not found in dictionary")
     if guess in wordset:
-        return True
+        return None
 
 
 def check_correct(guess: str, answer: str) -> bool:
@@ -60,17 +53,18 @@ def get_wordset_values(wordset: Set[str], letter_freq_dict: dict) -> list:
 
 
 def compare_words(guess: str, answer: str) -> List[Tuple]:
-    # Check first for exact positional matches
+    
     guess_list = []
     for index, (guess_char, answer_char) in enumerate(zip(guess, answer)):
+        # Check first for exact positional matches
         if guess_char == answer_char:
-            matchtype = "G"
+            matchtype = "G" # G=green
         elif guess_char != answer_char:
             # Then check whether the guess letter is in the answer
             if guess_char in answer:
-                matchtype = "Y"
+                matchtype = "Y" # Y=yellow
             else:
-                matchtype = "B"
+                matchtype = "B" # B=black
         guess_list.append((guess_char, index, matchtype))
     return guess_list
 
@@ -101,7 +95,9 @@ def get_new_words(wordlist: List[Tuple[str, int]],
                 for position in open_positions:
                     other_letters+=word[position]
                 if letter not in other_letters:
-                    remove_these.append((word, value))
+                    check_list = [(letter, mark) for letter, index, mark in compare_list]
+                    if (letter, 'G') not in check_list:
+                        remove_these.append((word, value))
                 if word[index]==letter:
                     remove_these.append((word, value))
 
@@ -115,21 +111,24 @@ def get_new_words(wordlist: List[Tuple[str, int]],
                     
     return wordlist
 
-def play_inline(override:str):
+def autoplay(override:str):
     characters = "abcdefghijklmnopqrstuvwxyz"
-    five_cha_eng_words = load_five_char_eng_words(characters)
+    dict_file = 'dict_file.txt'
+    five_cha_eng_words = import_words(dict_file)
     letter_freq_dict = get_count_letter_freq(characters, five_cha_eng_words)
     wordset_vals = get_wordset_values(five_cha_eng_words, letter_freq_dict)
 
     answer_word = random.choice(list(five_cha_eng_words))
     if override:
-        answer_word = override
+        if override in five_cha_eng_words:
+            answer_word = override
+        else:
+            raise ValueError("override word not in dictionary.")
     print("Answer word: ", answer_word)
 
     guess_num = 1
-    best_guesses_list = wordset_vals
     while guess_num < 7:
-        suggested_guess = best_guesses_list[0][0]
+        suggested_guess = wordset_vals[0][0]
         user_guess = suggested_guess
         print(f"Guess {guess_num}: {user_guess}")
         if user_guess == "x":
@@ -144,26 +143,38 @@ def play_inline(override:str):
                 print("Not correct, new guess...")
                 comp_list = compare_words(user_guess, answer_word)
                 print(comp_list)
-                best_guesses_list = get_new_words(best_guesses_list, comp_list)
+                wordset_vals = get_new_words(wordset_vals, comp_list)
             guess_num += 1
         except Exception as err:
             print(err)
 
-if __name__ == "__main__":
+def play_externally():
     characters = "abcdefghijklmnopqrstuvwxyz"
-    five_cha_eng_words = load_five_char_eng_words(characters)
+    dict_file = 'dict_file.txt'
+    five_cha_eng_words = import_words(dict_file)
     letter_freq_dict = get_count_letter_freq(characters, five_cha_eng_words)
     wordset_vals = get_wordset_values(five_cha_eng_words, letter_freq_dict)
     
-    guess_num = 0
+    guess_num = 1
     while guess_num < 7:
-        print("\nTry:\n", wordset_vals[0:50])
+        print("\nTry ('word', value):\n", wordset_vals[0:20])
+        print(f"\nGuess number {guess_num}")
         user_guess = input("Enter your guess. x to exit: ").lower()
         if user_guess == 'x':
             break
-        feedback = input("Enter your feedback (B=not in word, G=Exact, Y=Positional):").upper()
-        comp_list = []
-        for i in range(5):
-            comp_list.append((user_guess[i], i, feedback[i]))
-        print("Encoded Feedback: ", comp_list)
-        wordset_vals = get_new_words(wordset_vals, comp_list)
+        try:
+            check_valid(user_guess, five_cha_eng_words, characters)
+            feedback = input("Enter your feedback (B=Black, G=Green, Y=Yellow):").upper()
+            comp_list = []
+            for i in range(5):
+                comp_list.append((user_guess[i], i, feedback[i]))
+            print("Encoded Feedback: ", comp_list)
+            wordset_vals = get_new_words(wordset_vals, comp_list)
+            guess_num += 1
+        except Exception as e:
+            print(e)
+            
+
+if __name__ == "__main__":
+    # play_externally()
+    autoplay("tests")
