@@ -1,5 +1,6 @@
 from typing import Set, List, Tuple
 import random
+from multiprocessing import Pool
 
 
 def import_words(filename: str) -> Set[str]:
@@ -111,7 +112,7 @@ def get_new_words(wordlist: List[Tuple[str, int]],
                     
     return wordlist
 
-def autoplay(override:str):
+def autoplay(override:str = ''):
     characters = "abcdefghijklmnopqrstuvwxyz"
     dict_file = 'dict_file.txt'
     five_cha_eng_words = import_words(dict_file)
@@ -144,9 +145,13 @@ def autoplay(override:str):
                 comp_list = compare_words(user_guess, answer_word)
                 print(comp_list)
                 wordset_vals = get_new_words(wordset_vals, comp_list)
-            guess_num += 1
+                guess_num += 1
         except Exception as err:
             print(err)
+            
+    print(answer_word, guess_num)
+            
+    return guess_num
 
 def play_externally():
     characters = "abcdefghijklmnopqrstuvwxyz"
@@ -156,7 +161,7 @@ def play_externally():
     wordset_vals = get_wordset_values(five_cha_eng_words, letter_freq_dict)
     
     guess_num = 1
-    while guess_num < 7:
+    while guess_num < 6:
         print("\nTry ('word', value):\n", wordset_vals[0:20])
         print(f"\nGuess number {guess_num}")
         user_guess = input("Enter your guess. x to exit: ").lower()
@@ -165,16 +170,29 @@ def play_externally():
         try:
             check_valid(user_guess, five_cha_eng_words, characters)
             feedback = input("Enter your feedback (B=Black, G=Green, Y=Yellow):").upper()
-            comp_list = []
-            for i in range(5):
-                comp_list.append((user_guess[i], i, feedback[i]))
-            print("Encoded Feedback: ", comp_list)
-            wordset_vals = get_new_words(wordset_vals, comp_list)
-            guess_num += 1
+            if feedback == 'GGGGG':
+                print("Congrats!")
+                break
+            else:
+                comp_list = []
+                
+                for i in range(5):
+                    comp_list.append((user_guess[i], i, feedback[i]))
+                print("Encoded Feedback: ", comp_list)
+                wordset_vals = get_new_words(wordset_vals, comp_list)
+                guess_num += 1
         except Exception as e:
             print(e)
+    
+#%%
             
-
 if __name__ == "__main__":
     # play_externally()
-    autoplay("light")
+    
+    # autoplay("light")
+    five_cha_eng_words = import_words('dict_file.txt')
+    answer_words = random.sample(five_cha_eng_words, 1000)
+    
+    with Pool(10) as p:
+        guesses = p.map(autoplay, answer_words)
+        
